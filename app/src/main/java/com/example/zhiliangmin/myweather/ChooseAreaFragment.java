@@ -2,6 +2,7 @@ package com.example.zhiliangmin.myweather;
 
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.view.LayoutInflater;
@@ -17,8 +18,8 @@ import android.widget.Toast;
 import com.example.zhiliangmin.myweather.db.City;
 import com.example.zhiliangmin.myweather.db.County;
 import com.example.zhiliangmin.myweather.db.Province;
-import com.example.zhiliangmin.myweather.util.HttpUtils;
-import com.example.zhiliangmin.myweather.util.Utilty;
+import com.example.zhiliangmin.myweather.util.HttpUtil;
+import com.example.zhiliangmin.myweather.util.Utility;
 
 import org.litepal.crud.DataSupport;
 
@@ -66,9 +67,6 @@ public class ChooseAreaFragment extends Fragment {
 
 
 
-    public ChooseAreaFragment() {
-        // Required empty public constructor
-    }
 
 
     @Override
@@ -96,17 +94,23 @@ public class ChooseAreaFragment extends Fragment {
                     selectedProvince=provinceList.get(position);
                     queryCities();
 
-                }
-                else if (currentLevel==LEVEL_CITY){
+                }else if (currentLevel==LEVEL_CITY){
                     selectedCity=cityList.get(position);
                     queryCounties();
+                }else if (currentLevel==LEVEL_COUNTY){
+                    String weatherId=countyList.get(position).getWeatherId();
+                    Intent intent=new Intent(getActivity(),WeatherActivity.class);
+                    intent.putExtra("weather_id",weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
                 }
+
             }
         });
         backButton.setOnClickListener(new View.OnClickListener(){
 
             @Override
-            public void onClick(View view) {
+            public void onClick(View v) {
                 if (currentLevel==LEVEL_COUNTY){
                     queryCities();
 
@@ -186,30 +190,20 @@ public class ChooseAreaFragment extends Fragment {
     //根据传入的地址和类型从服务器上查询省市县数据
     private void queryFromServer(String address,final String type){
         showProgressDialog();
-        HttpUtils.sendOkHttpRequest(address, new Callback() {
-            @Override
-            public void onFailure(Call call, IOException e) {
-                //通过runOnUiThread()方法回到主线程处理逻辑
-                getActivity().runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        closeProgressDialog();
-                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
-                    }
-                });
-            }
+        HttpUtil.sendOkHttpRequest(address, new Callback() {
+
 
             @Override
             public void onResponse(Call call, Response response) throws IOException {
                 String responseText=response.body().string();
                 boolean result=false;
                 if ("province".equals(type)){
-                    result= Utilty.handleProvinceResponse(responseText);
+                    result= Utility.handleProvinceResponse(responseText);
 
                 }else if ("city".equals(type)){
-                    result=Utilty.handleCountyResponse(responseText,selectedProvince.getId());
+                    result= Utility.handleCityResponse(responseText,selectedProvince.getId());
                 }else if ("county".equals(type)){
-                    result=Utilty.handleCountyResponse(responseText,selectedCity.getId());
+                    result= Utility.handleCountyResponse(responseText,selectedCity.getId());
                 }
                 if (result){
                     getActivity().runOnUiThread(new Runnable() {
@@ -228,6 +222,19 @@ public class ChooseAreaFragment extends Fragment {
                 }
 
             }
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                //通过runOnUiThread()方法回到主线程处理逻辑
+                getActivity().runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        closeProgressDialog();
+                        Toast.makeText(getContext(),"加载失败",Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
+
         });
     }
 
